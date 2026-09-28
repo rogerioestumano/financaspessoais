@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controle Financeiro Pessoal</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --warning: #d97706;
+      --info: #0284c7;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 24px 16px; }
+    .container { max-width: 1050px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+    header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+    h1 { font-size: 1.5rem; font-weight: 700; }
+
+    /* Métricas */
+    .grid-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+    .card-title { font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; }
+    .card-value { font-size: 1.5rem; font-weight: 700; }
+
+    .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+    .panel-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 16px; }
+
+    /* Formulário */
+    form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: end; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    label { font-size: 0.85rem; font-weight: 500; color: var(--muted); }
+    input, select {
+      padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95rem; outline: none; background: white;
+    }
+    input:focus, select:focus { border-color: var(--primary); }
+
+    button {
+      padding: 10px 16px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s;
+    }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-danger { background: transparent; color: var(--danger); padding: 4px 8px; border-radius: 4px; }
+    .btn-danger:hover { background: #fee2e2; }
+
+    /* Seletor Tipo (Renda x Despesa) */
+    .type-selector { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; height: 42px; }
+    .type-btn {
+      flex: 1; border: none; background: #f1f5f9; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 0.9rem;
+    }
+    .type-btn.active-expense { background: #fee2e2; color: var(--danger); }
+    .type-btn.active-income { background: #dcfce7; color: var(--success); }
+
+    /* Gerenciadores (Categorias & Status) */
+    .manager-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+    .manager-box { display: flex; flex-direction: column; gap: 10px; }
+    .input-action-row { display: flex; gap: 8px; }
+    .chips-wrapper { display: flex; flex-wrap: wrap; gap: 8px; min-height: 38px; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px; background: #f1f5f9;
+      color: var(--text); padding: 5px 12px; border-radius: 999px; font-size: 0.85rem; font-weight: 500;
+      border: 1px solid var(--border);
+    }
+    .chip button {
+      background: transparent; border: none; color: #94a3b8; font-size: 1rem; cursor: pointer; padding: 0; line-height: 1;
+    }
+    .chip button:hover { color: var(--danger); }
+
+    /* Filtros e Tabela */
+    .filters { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; align-items: flex-end; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+    th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { font-size: 0.8rem; text-transform: uppercase; color: var(--muted); letter-spacing: 0.05em; }
+
+    .badge {
+      display: inline-block; padding: 4px 10px; font-size: 0.75rem; border-radius: 999px; font-weight: 600; cursor: pointer;
+      user-select: none;
+    }
+    .badge-status { background: #e0f2fe; color: var(--info); border: 1px solid #bae6fd; }
+
+    .val-income { color: var(--success); font-weight: 600; }
+    .val-expense { color: var(--danger); font-weight: 600; }
+
+    /* Barras de Análise */
+    .category-bars { display: flex; flex-direction: column; gap: 10px; }
+    .bar-item { display: flex; flex-direction: column; gap: 4px; }
+    .bar-header { display: flex; justify-content: space-between; font-size: 0.85rem; }
+    .progress-track { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--primary); border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>Gestão Financeira Pessoal</h1>
+    <span id="dataAtual" style="color: var(--muted); font-size: 0.9rem;"></span>
+  </header>
+
+  <!-- Métricas Rápidas -->
+  <section class="grid-cards">
+    <div class="card">
+      <div class="card-title">Receitas / Renda</div>
+      <div class="card-value" id="cardReceitas" style="color: var(--success);">R$ 0,00</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Despesas</div>
+      <div class="card-value" id="cardDespesas" style="color: var(--danger);">R$ 0,00</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Saldo Líquido</div>
+      <div class="card-value" id="cardSaldo">R$ 0,00</div>
+    </div>
+  </section>
+
+  <!-- Lançamento de Transações (Renda ou Despesa) -->
+  <section class="panel">
+    <div class="panel-title">Novo Lançamento</div>
+    <form id="transactionForm">
+      <div class="form-group">
+        <label>Tipo de Transação</label>
+        <div class="type-selector">
+          <button type="button" id="btnTipoDespesa" class="type-btn active-expense">Despesa</button>
+          <button type="button" id="btnTipoRenda" class="type-btn">Renda (+)</button>
+        </div>
+      </div>
+
+      <div class="form-group" style="grid-column: span 2;">
+        <label for="descricao">Descrição</label>
+        <input type="text" id="descricao" placeholder="Ex: Salário, Aluguel, Venda, Freelance" required>
+      </div>
+
+      <div class="form-group">
+        <label for="valor">Valor (R$)</label>
+        <input type="number" id="valor" step="0.01" min="0.01" placeholder="0,00" required>
+      </div>
+
+      <div class="form-group">
+        <label for="categoria">Categoria</label>
+        <select id="categoria" required></select>
+      </div>
+
+      <div class="form-group">
+        <label for="status">Status</label>
+        <select id="status" required></select>
+      </div>
+
+      <div class="form-group">
+        <label for="data">Data</label>
+        <input type="date" id="data" required>
+      </div>
+
+      <button type="submit" class="btn-primary" style="height: 42px;">Salvar Lançamento</button>
+    </form>
+  </section>
+
+  <!-- Gerenciador de Categorias e Status -->
+  <section class="panel">
+    <div class="panel-title">Configurar Categorias e Status</div>
+    <div class="manager-grid">
+      <!-- Gerenciar Categorias -->
+      <div class="manager-box">
+        <label><strong>Categorias</strong></label>
+        <div class="input-action-row">
+          <input type="text" id="novaCatInput" placeholder="Nova categoria..." style="flex:1;">
+          <button type="button" id="btnSalvarCat" class="btn-primary">+</button>
+        </div>
+        <div class="chips-wrapper" id="categoryChips"></div>
+      </div>
+
+      <!-- Gerenciar Status -->
+      <div class="manager-box">
+        <label><strong>Status</strong></label>
+        <div class="input-action-row">
+          <input type="text" id="novoStatusInput" placeholder="Novo status (ex: Agendado)..." style="flex:1;">
+          <button type="button" id="btnSalvarStatus" class="btn-primary">+</button>
+        </div>
+        <div class="chips-wrapper" id="statusChips"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Análise Visual por Categoria -->
+  <section class="panel">
+    <div class="panel-title">Gastos por Categoria (Despesas)</div>
+    <div id="categoryBars" class="category-bars"></div>
+  </section>
+
+  <!-- Filtros e Histórico -->
+  <section class="panel">
+    <div class="panel-title">Histórico de Movimentações</div>
+    <div class="filters">
+      <div class="form-group">
+        <label for="filtroTipo">Tipo:</label>
+        <select id="filtroTipo">
+          <option value="Todos">Todos</option>
+          <option value="renda">Apenas Rendas</option>
+          <option value="despesa">Apenas Despesas</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="filtroInicio">De:</label>
+        <input type="date" id="filtroInicio">
+      </div>
+      <div class="form-group">
+        <label for="filtroFim">Até:</label>
+        <input type="date" id="filtroFim">
+      </div>
+      <div class="form-group">
+        <label for="filtroCategoria">Categoria:</label>
+        <select id="filtroCategoria"></select>
+      </div>
+      <div class="form-group">
+        <label for="filtroStatus">Status:</label>
+        <select id="filtroStatus"></select>
+      </div>
+      <button type="button" id="btnLimparFiltros" style="background: var(--border);">Limpar Filtros</button>
+    </div>
+
+    <div style="overflow-x: auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Tipo</th>
+            <th>Descrição</th>
+            <th>Categoria</th>
+            <th>Valor</th>
+            <th>Status (clique p/ alterar)</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="transactionsTableBody"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+  // Padrões Iniciais
+  const DEFAULT_CATEGORIES = ['Alimentação', 'Moradia', 'Transporte', 'Saúde', 'Salário', 'Serviços', 'Lazer', 'Outros'];
+  const DEFAULT_STATUSES = ['Pendente', 'Pago / Recebido', 'Agendado'];
+
+  // Carregamento e compatibilidade com dados anteriores
+  let rawStorage = JSON.parse(localStorage.getItem('minhas_despesas')) || [];
+  let transactions = rawStorage.map(item => ({
+    ...item,
+    tipo: item.tipo || 'despesa' // converte dados legados
+  }));
+
+  let categories = JSON.parse(localStorage.getItem('minhas_categorias')) || DEFAULT_CATEGORIES;
+  let statuses = JSON.parse(localStorage.getItem('meus_status')) || DEFAULT_STATUSES;
+
+  let currentSelectedType = 'despesa';
+
+  // Elementos DOM
+  const form = document.getElementById('transactionForm');
+  const btnTipoDespesa = document.getElementById('btnTipoDespesa');
+  const btnTipoRenda = document.getElementById('btnTipoRenda');
+  const selectCategoriaForm = document.getElementById('categoria');
+  const selectStatusForm = document.getElementById('status');
+  const tableBody = document.getElementById('transactionsTableBody');
+
+  const novaCatInput = document.getElementById('novaCatInput');
+  const btnSalvarCat = document.getElementById('btnSalvarCat');
+  const categoryChips = document.getElementById('categoryChips');
+
+  const novoStatusInput = document.getElementById('novoStatusInput');
+  const btnSalvarStatus = document.getElementById('btnSalvarStatus');
+  const statusChips = document.getElementById('statusChips');
+
+  const filtroTipo = document.getElementById('filtroTipo');
+  const filtroInicio = document.getElementById('filtroInicio');
+  const filtroFim = document.getElementById('filtroFim');
+  const filtroCategoria = document.getElementById('filtroCategoria');
+  const filtroStatus = document.getElementById('filtroStatus');
+  const btnLimpar = document.getElementById('btnLimparFiltros');
+
+  // Inicialização de Datas
+  document.getElementById('data').value = new Date().toISOString().split('T')[0];
+  document.getElementById('dataAtual').textContent = new Date().toLocaleDateString('pt-BR', { dateStyle: 'long' });
+
+  function formatBRL(valor) {
+    return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+
+  // Alternância do Tipo (Despesa / Renda)
+  btnTipoDespesa.addEventListener('click', () => {
+    currentSelectedType = 'despesa';
+    btnTipoDespesa.className = 'type-btn active-expense';
+    btnTipoRenda.className = 'type-btn';
+  });
+
+  btnTipoRenda.addEventListener('click', () => {
+    currentSelectedType = 'renda';
+    btnTipoRenda.className = 'type-btn active-income';
+    btnTipoDespesa.className = 'type-btn';
+  });
+
+  // Salvar no LocalStorage
+  function persistTransactions() {
+    localStorage.setItem('minhas_despesas', JSON.stringify(transactions));
+    render();
+  }
+
+  function persistCategories() {
+    localStorage.setItem('minhas_categorias', JSON.stringify(categories));
+    renderCategories();
+  }
+
+  function persistStatuses() {
+    localStorage.setItem('meus_status', JSON.stringify(statuses));
+    renderStatuses();
+  }
+
+  // Renderização e Gestão de Categorias
+  function renderCategories() {
+    const curForm = selectCategoriaForm.value;
+    selectCategoriaForm.innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
+    if (categories.includes(curForm)) selectCategoriaForm.value = curForm;
+
+    const curFiltro = selectCategoriaFiltroVal();
+    filtroCategoria.innerHTML = `<option value="Todas">Todas</option>` + categories.map(c => `<option value="${c}">${c}</option>`).join('');
+    if (categories.includes(curFiltro)) filtroCategoria.value = curFiltro;
+
+    categoryChips.innerHTML = '';
+    categories.forEach(cat => {
+      const chip = document.createElement('div');
+      chip.className = 'chip';
+      chip.innerHTML = `<span>${cat}</span><button type="button" title="Excluir" onclick="removeCategory('${cat}')">&times;</button>`;
+      categoryChips.appendChild(chip);
+    });
+  }
+
+  function selectCategoriaFiltroVal() {
+    return filtroCategoria.value || 'Todas';
+  }
+
+  btnSalvarCat.addEventListener('click', () => {
+    const val = novaCatInput.value.trim();
+    if (!val) return;
+    if (categories.some(c => c.toLowerCase() === val.toLowerCase())) {
+      alert('Esta categoria já existe!');
+      return;
+    }
+    categories.push(val);
+    novaCatInput.value = '';
+    persistCategories();
+  });
+
+  function removeCategory(cat) {
+    if (transactions.some(t => t.categoria === cat)) {
+      alert(`Não é possível excluir a categoria "${cat}" pois já existem lançamentos vinculados.`);
+      return;
+    }
+    if (confirm(`Excluir a categoria "${cat}"?`)) {
+      categories = categories.filter(c => c !== cat);
+      persistCategories();
+      render();
+    }
+  }
+
+  // Renderização e Gestão de Status
+  function renderStatuses() {
+    const curForm = selectStatusForm.value;
+    selectStatusForm.innerHTML = statuses.map(s => `<option value="${s}">${s}</option>`).join('');
+    if (statuses.includes(curForm)) selectStatusForm.value = curForm;
+
+    const curFiltro = filtroStatus.value || 'Todos';
+    filtroStatus.innerHTML = `<option value="Todos">Todos</option>` + statuses.map(s => `<option value="${s}">${s}</option>`).join('');
+    if (statuses.includes(curFiltro)) filtroStatus.value = curFiltro;
+
+    statusChips.innerHTML = '';
+    statuses.forEach(st => {
+      const chip = document.createElement('div');
+      chip.className = 'chip';
+      chip.innerHTML = `<span>${st}</span><button type="button" title="Excluir" onclick="removeStatus('${st}')">&times;</button>`;
+      statusChips.appendChild(chip);
+    });
+  }
+
+  btnSalvarStatus.addEventListener('click', () => {
+    const val = novoStatusInput.value.trim();
+    if (!val) return;
+    if (statuses.some(s => s.toLowerCase() === val.toLowerCase())) {
+      alert('Este status já existe!');
+      return;
+    }
+    statuses.push(val);
+    novoStatusInput.value = '';
+    persistStatuses();
+  });
+
+  function removeStatus(st) {
+    if (statuses.length <= 1) {
+      alert('O sistema precisa de pelo menos 1 status cadastrado.');
+      return;
+    }
+    if (transactions.some(t => t.status === st)) {
+      alert(`Não é possível excluir o status "${st}" pois há transações com ele associado.`);
+      return;
+    }
+    if (confirm(`Excluir o status "${st}"?`)) {
+      statuses = statuses.filter(s => s !== st);
+      persistStatuses();
+      render();
+    }
+  }
+
+  // Submissão do Formulário
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const newTx = {
+      id: Date.now().toString(),
+      tipo: currentSelectedType,
+      descricao: document.getElementById('descricao').value.trim(),
+      valor: parseFloat(document.getElementById('valor').value),
+      categoria: selectCategoriaForm.value,
+      status: selectStatusForm.value,
+      data: document.getElementById('data').value
+    };
+
+    transactions.push(newTx);
+    persistTransactions();
+    form.reset();
+    document.getElementById('data').value = new Date().toISOString().split('T')[0];
+    if (categories.length > 0) selectCategoriaForm.value = categories[0];
+    if (statuses.length > 0) selectStatusForm.value = statuses[0];
+  });
+
+  // Filtros
+  function getFilteredTransactions() {
+    const tipo = filtroTipo.value;
+    const inicio = filtroInicio.value;
+    const fim = filtroFim.value;
+    const cat = filtroCategoria.value;
+    const st = filtroStatus.value;
+
+    return transactions.filter(item => {
+      const matchTipo = tipo === 'Todos' || item.tipo === tipo;
+      const matchCat = cat === 'Todas' || item.categoria === cat;
+      const matchSt = st === 'Todos' || item.status === st;
+      const matchInicio = !inicio || item.data >= inicio;
+      const matchFim = !fim || item.data <= fim;
+      return matchTipo && matchCat && matchSt && matchInicio && matchFim;
+    });
+  }
+
+  // Alternar Status ao clicar no badge
+  function cycleStatus(id) {
+    transactions = transactions.map(item => {
+      if (item.id === id) {
+        const currentIndex = statuses.indexOf(item.status);
+        const nextIndex = (currentIndex + 1) % statuses.length;
+        return { ...item, status: statuses[nextIndex] };
+      }
+      return item;
+    });
+    persistTransactions();
+  }
+
+  function removeTransaction(id) {
+    if (confirm('Deseja excluir este lançamento?')) {
+      transactions = transactions.filter(item => item.id !== id);
+      persistTransactions();
+    }
+  }
+
+  // Métricas e Gráficos
+  function renderMetrics(filtered) {
+    const totalReceitas = filtered.filter(x => x.tipo === 'renda').reduce((acc, cur) => acc + cur.valor, 0);
+    const totalDespesas = filtered.filter(x => x.tipo === 'despesa').reduce((acc, cur) => acc + cur.valor, 0);
+    const saldo = totalReceitas - totalDespesas;
+
+    document.getElementById('cardReceitas').textContent = formatBRL(totalReceitas);
+    document.getElementById('cardDespesas').textContent = formatBRL(totalDespesas);
+    
+    const cardSaldo = document.getElementById('cardSaldo');
+    cardSaldo.textContent = formatBRL(saldo);
+    cardSaldo.style.color = saldo >= 0 ? 'var(--text)' : 'var(--danger)';
+
+    // Gráfico de Barras: Distribuição de Despesas por Categoria
+    const despesas = filtered.filter(x => x.tipo === 'despesa');
+    const catMap = {};
+    despesas.forEach(x => {
+      catMap[x.categoria] = (catMap[x.categoria] || 0) + x.valor;
+    });
+
+    const categoryBars = document.getElementById('categoryBars');
+    categoryBars.innerHTML = '';
+
+    if (totalDespesas === 0) {
+      categoryBars.innerHTML = '<span style="font-size: 0.9rem; color: var(--muted);">Nenhuma despesa para analisar neste período filtrado.</span>';
+      return;
+    }
+
+    Object.entries(catMap).sort((a, b) => b[1] - a[1]).forEach(([cat, val]) => {
+      const pct = ((val / totalDespesas) * 100).toFixed(1);
+      const barItem = document.createElement('div');
+      barItem.className = 'bar-item';
+      barItem.innerHTML = `
+        <div class="bar-header">
+          <span><strong>${cat}</strong> (${pct}%)</span>
+          <span>${formatBRL(val)}</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" style="width: ${pct}%;"></div>
+        </div>
+      `;
+      categoryBars.appendChild(barItem);
+    });
+  }
+
+  // Tabela de Lançamentos
+  function renderTable(filtered) {
+    tableBody.innerHTML = '';
+    const sorted = [...filtered].sort((a, b) => new Date(b.data) - new Date(a.data));
+
+    if (sorted.length === 0) {
+      tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--muted); padding: 24px;">Nenhuma movimentação encontrada.</td></tr>';
+      return;
+    }
+
+    sorted.forEach(item => {
+      const tr = document.createElement('tr');
+      const isIncome = item.tipo === 'renda';
+
+      tr.innerHTML = `
+        <td>${item.data.split('-').reverse().join('/')}</td>
+        <td>
+          <span style="font-size: 0.8rem; font-weight: 700; color: ${isIncome ? 'var(--success)' : 'var(--danger)'};">
+            ${isIncome ? '▲ RENDA' : '▼ DESPESA'}
+          </span>
+        </td>
+        <td><strong>${item.descricao}</strong></td>
+        <td>${item.categoria}</td>
+        <td class="${isIncome ? 'val-income' : 'val-expense'}">
+          ${isIncome ? '+ ' : '- '}${formatBRL(item.valor)}
+        </td>
+        <td>
+          <span class="badge badge-status" onclick="cycleStatus('${item.id}')" title="Clique para avançar de status">
+            ${item.status}
+          </span>
+        </td>
+        <td>
+          <button class="btn-danger" onclick="removeTransaction('${item.id}')">Excluir</button>
+        </td>
+      `;
+      tableBody.appendChild(tr);
+    });
+  }
+
+  function render() {
+    const filtered = getFilteredTransactions();
+    renderMetrics(filtered);
+    renderTable(filtered);
+  }
+
+  // Listeners de Filtros
+  [filtroTipo, filtroInicio, filtroFim, filtroCategoria, filtroStatus].forEach(el => {
+    el.addEventListener('change', render);
+  });
+
+  btnLimpar.addEventListener('click', () => {
+    filtroTipo.value = 'Todos';
+    filtroInicio.value = '';
+    filtroFim.value = '';
+    filtroCategoria.value = 'Todas';
+    filtroStatus.value = 'Todos';
+    render();
+  });
+
+  // Inicialização geral
+  renderCategories();
+  renderStatuses();
+  render();
+</script>
+</body>
+</html>
